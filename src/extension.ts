@@ -21,6 +21,7 @@ let outputChannel: vscode.OutputChannel
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	// yu: outputChannelを作成することでログを記録できる
 	outputChannel = vscode.window.createOutputChannel("Cline")
 	context.subscriptions.push(outputChannel)
 
@@ -28,12 +29,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const sidebarProvider = new ClineProvider(context, outputChannel)
 
+	// yu: ClineProviderをサイドバーに登録
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ClineProvider.sideBarId, sidebarProvider, {
 			webviewOptions: { retainContextWhenHidden: true },
 		}),
 	)
-
+	
+	// yu: 新しいタスク開始をvscode.ExtensionContextに追加
 	context.subscriptions.push(
 		vscode.commands.registerCommand("cline.plusButtonClicked", async () => {
 			outputChannel.appendLine("Plus button Clicked")
@@ -43,6 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 	)
 
+	// yu: MCPボタンのクリックを処理
 	context.subscriptions.push(
 		vscode.commands.registerCommand("cline.mcpButtonClicked", () => {
 			sidebarProvider.postMessageToWebview({ type: "action", action: "mcpButtonClicked" })
