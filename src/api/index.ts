@@ -11,12 +11,17 @@ import { GeminiHandler } from "./providers/gemini"
 import { OpenAiNativeHandler } from "./providers/openai-native"
 import { ApiStream } from "./transform/stream"
 
+// 各AI Providerとのinterface定義
+
 export interface ApiHandler {
 	createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream
 	getModel(): { id: string; info: ModelInfo }
 }
 
+// ファクトリーメソッド
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
+	// typescriptの分割構文
+	// configurationの最初の要素がapiProviderに代入され残りの要素がoptionsに{}の形で代入される
 	const { apiProvider, ...options } = configuration
 	switch (apiProvider) {
 		case "anthropic":
