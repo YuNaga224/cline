@@ -102,6 +102,10 @@ export class Cline {
 		images?: string[],
 		historyItem?: HistoryItem,
 	) {
+		// yu: 直接インスタンス化してしまっている。
+		// テスタビリティ向上のために依存性注入したほうが良さそう
+		// TODO: 依存性注入
+		// yu: WeakRefは弱参照と呼ばれ、オブジェクトへの参照を保持しつつ、ガベージコレクションを妨げない効率の良い参照
 		this.providerRef = new WeakRef(provider)
 		this.api = buildApiHandler(apiConfiguration)
 		this.terminalManager = new TerminalManager()
@@ -790,6 +794,7 @@ export class Cline {
 		return false
 	}
 
+	// ジェネレータ関数として定義されている
 	async *attemptApiRequest(previousApiReqIndex: number): ApiStream {
 		// Wait for MCP servers to be connected before generating system prompt
 		await pWaitFor(() => this.providerRef.deref()?.mcpHub?.isConnecting !== true, { timeout: 10_000 }).catch(() => {
@@ -843,8 +848,9 @@ export class Cline {
 
 		try {
 			// awaiting first chunk to see if it will throw an error
+			// yu: 最初にこれを生成
 			const firstChunk = await iterator.next()
-			yield firstChunk.value
+			yield firstChunk.value //yu: まずはこれを返す
 		} catch (error) {
 			// note that this api_req_failed ask is unique in that we only present this option if the api hasn't streamed any content yet (ie it fails on the first chunk due), as it would allow them to hit a retry button. However if the api failed mid-stream, it could be in any arbitrary state where some tools may have executed, so that error is handled differently and requires cancelling the task entirely.
 			const { response } = await this.ask(
@@ -857,7 +863,7 @@ export class Cline {
 			}
 			await this.say("api_req_retried")
 			// delegate generator output from the recursive call
-			yield* this.attemptApiRequest(previousApiReqIndex)
+			yield* this.attemptApiRequest(previousApiReqIndex) // yu: 次にこれを返す
 			return
 		}
 
