@@ -53,12 +53,18 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 	)
 
+	// yu: ClineウェブビューをVS Codeの新しいタブで開くための非同期関数
 	const openClineInNewTab = async () => {
 		outputChannel.appendLine("Opening Cline in new tab")
 		// (this example uses webviewProvider activation event which is necessary to deserialize cached webview, but since we use retainContextWhenHidden, we don't need to use that event)
 		// https://github.com/microsoft/vscode-extension-samples/blob/main/webview-sample/src/extension.ts
+		
+		// yu: ClineProviderは実際のウェブビューの内容とその動作を担当している
 		const tabProvider = new ClineProvider(context, outputChannel)
 		//const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined
+		// yu: タブの配置位置決定の処理が以下数行にわたって行われる
+		// yu: 現在開いているテキストエディタの位置情報を取得し、最後のカラム位置を計算します
+		// yu: visibleTextEditorsの配列から各エディタのビューカラム位置を取得し、その中で最大の値を見つけます
 		const lastCol = Math.max(...vscode.window.visibleTextEditors.map((editor) => editor.viewColumn || 0))
 
 		// Check if there are any visible text editors, otherwise open a new group to the right
@@ -86,9 +92,11 @@ export function activate(context: vscode.ExtensionContext) {
 		await vscode.commands.executeCommand("workbench.action.lockEditorGroup")
 	}
 
+	// yu: Clineウェブビューを新しいVS Codeタブとして開く処理をvscode.ExtensionContextに追加
 	context.subscriptions.push(vscode.commands.registerCommand("cline.popoutButtonClicked", openClineInNewTab))
 	context.subscriptions.push(vscode.commands.registerCommand("cline.openInNewTab", openClineInNewTab))
 
+	// yu: settingコマンドを拡張機能に登録
 	context.subscriptions.push(
 		vscode.commands.registerCommand("cline.settingsButtonClicked", () => {
 			//vscode.window.showInformationMessage(message)
@@ -96,6 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 	)
 
+	// yu: 履歴コマンドを拡張機能に登録
 	context.subscriptions.push(
 		vscode.commands.registerCommand("cline.historyButtonClicked", () => {
 			sidebarProvider.postMessageToWebview({ type: "action", action: "historyButtonClicked" })
@@ -109,6 +118,7 @@ export function activate(context: vscode.ExtensionContext) {
 	- Note how the provider doesn't create uris for virtual documents - its role is to provide contents given such an uri. In return, content providers are wired into the open document logic so that providers are always considered.
 	https://code.visualstudio.com/api/extension-guides/virtual-documents
 	*/
+	// 画面左に差分ビューを読み取り専用で表示するためのプロバイダー
 	const diffContentProvider = new (class implements vscode.TextDocumentContentProvider {
 		provideTextDocumentContent(uri: vscode.Uri): string {
 			return Buffer.from(uri.query, "base64").toString("utf-8")
@@ -121,6 +131,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// URI Handler
 	const handleUri = async (uri: vscode.Uri) => {
 		const path = uri.path
+		// クエリパラメータ内で+を適切に処理するための置換
 		const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))
 		const visibleProvider = ClineProvider.getVisibleInstance()
 		if (!visibleProvider) {
@@ -144,6 +155,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
+// VSCode拡張機能が無効化されたときに呼び出される関数
 export function deactivate() {
 	outputChannel.appendLine("Cline extension deactivated")
 }
