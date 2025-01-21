@@ -180,6 +180,7 @@ export class Cline {
 		} else {
 			// check old location
 			// cluade_messages.jsonに古いClineMessagesが保存されているの？
+			// 以前のバージョンでは,ClineMessageはclaude_messages.jsonに保存されていたようで、後方互換性のためにチェックしているらしい。
 			const oldPath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
 			if (await fileExistsAtPath(oldPath)) {
 				const data = JSON.parse(await fs.readFile(oldPath, "utf8"))
@@ -217,6 +218,8 @@ export class Cline {
 				)
 			)
 			// 最初のメッセージはいつもtask sayであると言っている
+			// ユーザーからの質問はaskなのでaskから始まりそうなのだが、実際にはタスク開始時のユーザー入力のタスク自体もsayタイプのメッセージとして保存している
+			// これについてはstartTask関数の実装を確認
 			const taskMessage = this.clineMessages[0] // first message is always the task say
 			// 最後の関連メッセージを探す
 			const lastRelevantMessage =

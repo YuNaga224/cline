@@ -48,14 +48,15 @@ export interface ExtensionState {
 	autoApprovalSettings: AutoApprovalSettings
 }
 
+// ユーザーとAI間のやり取りを表現するためのインターフェース 
 export interface ClineMessage {
-	ts: number
-	type: "ask" | "say"
-	ask?: ClineAsk
-	say?: ClineSay
-	text?: string
-	images?: string[]
-	partial?: boolean
+	ts: number // これはタイムスタンプを表しているらしい、typescriptだからそれ関連かと思った。。紛らわしい。。。
+	type: "ask" | "say" // メッセージの種類。AIとの会話をaskとsayに分解しているのは良いね
+	ask?: ClineAsk // ユーザーからの入力タイプ
+	say?: ClineSay // AIからの応答
+	text?: string // メッセージの内容
+	images?: string[] // 添付画像
+	partial?: boolean // 部分的なメッセージかどうか←これ気になる。部分的なメッセージの場合はどうしているのだろう？処理を分けているんだろうか？
 }
 
 export type ClineAsk =
