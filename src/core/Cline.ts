@@ -137,6 +137,7 @@ export class Cline {
 		return taskDir
 	}
 
+	// Apiとの会話履歴の取得
 	private async getSavedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
 		const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory)
 		const fileExists = await fileExistsAtPath(filePath)
@@ -146,16 +147,19 @@ export class Cline {
 		return []
 	}
 
+	// apiとの会話履歴へのAnthropic.MessageParamの追加
 	private async addToApiConversationHistory(message: Anthropic.MessageParam) {
 		this.apiConversationHistory.push(message)
 		await this.saveApiConversationHistory()
 	}
 
+	// apiとの会話履歴の上書き
 	private async overwriteApiConversationHistory(newHistory: Anthropic.MessageParam[]) {
 		this.apiConversationHistory = newHistory
 		await this.saveApiConversationHistory()
 	}
 
+	// Apiとの会話履歴保存の関数
 	private async saveApiConversationHistory() {
 		try {
 			const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory)
@@ -166,12 +170,16 @@ export class Cline {
 		}
 	}
 
+	// 保存されたClineMessageの取得
+	// ClineMessage is NANI??
 	private async getSavedClineMessages(): Promise<ClineMessage[]> {
+		// ここでの第二引数はGlobalFileNames.ClineMessageとなっていても良さそうな気がするけど、なぜそうなっていないのだろうか？？
 		const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages)
 		if (await fileExistsAtPath(filePath)) {
 			return JSON.parse(await fs.readFile(filePath, "utf8"))
 		} else {
 			// check old location
+			// cluade_messages.jsonに古いClineMessagesが保存されているの？
 			const oldPath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
 			if (await fileExistsAtPath(oldPath)) {
 				const data = JSON.parse(await fs.readFile(oldPath, "utf8"))
@@ -182,27 +190,40 @@ export class Cline {
 		return []
 	}
 
+	// ClineMessagesへのメッセージの追加
 	private async addToClineMessages(message: ClineMessage) {
 		this.clineMessages.push(message)
 		await this.saveClineMessages()
 	}
 
+	// ClineMessagesの上書き
 	private async overwriteClineMessages(newMessages: ClineMessage[]) {
 		this.clineMessages = newMessages
 		await this.saveClineMessages()
 	}
 
+	// ClineMessageの保存
 	private async saveClineMessages() {
 		try {
 			const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages)
 			await fs.writeFile(filePath, JSON.stringify(this.clineMessages))
 			// combined as they are in ChatView
-			const apiMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(this.clineMessages.slice(1))))
+			// メッセージの統計情報の取得
+			const apiMetrics = getApiMetrics(
+				combineApiRequests(
+					combineCommandSequences(
+						this.clineMessages.slice(1) // 最初のメッセージを除いた配列を取得
+					)
+				)
+			)
+			// 最初のメッセージはいつもtask sayであると言っている
 			const taskMessage = this.clineMessages[0] // first message is always the task say
+			// 最後の関連メッセージを探す
 			const lastRelevantMessage =
 				this.clineMessages[
 					findLastIndex(
 						this.clineMessages,
+						// resume_taskやresume_completed_task以外の最後のメッセージを探しているのは制御構文を除外するため？？
 						(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task"),
 					)
 				]
@@ -221,6 +242,7 @@ export class Cline {
 		}
 	}
 
+	// 2025/01/21　本日の読解はここまで！！
 	// Communicate with webview
 
 	// partial has three valid states true (partial message), false (completion of partial message), undefined (individual complete message)
