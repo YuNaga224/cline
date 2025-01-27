@@ -102,6 +102,10 @@ export class Cline {
 		images?: string[],
 		historyItem?: HistoryItem,
 	) {
+		// yu: 直接インスタンス化してしまっている。
+		// テスタビリティ向上のために依存性注入したほうが良さそう
+		// TODO: 依存性注入
+		// yu: WeakRefは弱参照と呼ばれ、オブジェクトへの参照を保持しつつ、ガベージコレクションを妨げない効率の良い参照
 		this.providerRef = new WeakRef(provider)
 		this.api = buildApiHandler(apiConfiguration)
 		this.terminalManager = new TerminalManager()
@@ -133,6 +137,7 @@ export class Cline {
 		return taskDir
 	}
 
+	// Apiとの会話履歴の取得
 	private async getSavedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
 		const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory)
 		const fileExists = await fileExistsAtPath(filePath)
@@ -142,16 +147,19 @@ export class Cline {
 		return []
 	}
 
+	// apiとの会話履歴へのAnthropic.MessageParamの追加
 	private async addToApiConversationHistory(message: Anthropic.MessageParam) {
 		this.apiConversationHistory.push(message)
 		await this.saveApiConversationHistory()
 	}
 
+	// apiとの会話履歴の上書き
 	private async overwriteApiConversationHistory(newHistory: Anthropic.MessageParam[]) {
 		this.apiConversationHistory = newHistory
 		await this.saveApiConversationHistory()
 	}
 
+	// Apiとの会話履歴保存の関数
 	private async saveApiConversationHistory() {
 		try {
 			const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.apiConversationHistory)
@@ -162,12 +170,17 @@ export class Cline {
 		}
 	}
 
+	// 保存されたClineMessageの取得
+	// ClineMessage is NANI??
 	private async getSavedClineMessages(): Promise<ClineMessage[]> {
+		// ここでの第二引数はGlobalFileNames.ClineMessageとなっていても良さそうな気がするけど、なぜそうなっていないのだろうか？？
 		const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages)
 		if (await fileExistsAtPath(filePath)) {
 			return JSON.parse(await fs.readFile(filePath, "utf8"))
 		} else {
 			// check old location
+			// cluade_messages.jsonに古いClineMessagesが保存されているの？
+			// 以前のバージョンでは,ClineMessageはclaude_messages.jsonに保存されていたようで、後方互換性のためにチェックしているらしい。
 			const oldPath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
 			if (await fileExistsAtPath(oldPath)) {
 				const data = JSON.parse(await fs.readFile(oldPath, "utf8"))
@@ -178,27 +191,42 @@ export class Cline {
 		return []
 	}
 
+	// ClineMessagesへのメッセージの追加
 	private async addToClineMessages(message: ClineMessage) {
 		this.clineMessages.push(message)
 		await this.saveClineMessages()
 	}
 
+	// ClineMessagesの上書き
 	private async overwriteClineMessages(newMessages: ClineMessage[]) {
 		this.clineMessages = newMessages
 		await this.saveClineMessages()
 	}
 
+	// ClineMessageの保存
 	private async saveClineMessages() {
 		try {
 			const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages)
 			await fs.writeFile(filePath, JSON.stringify(this.clineMessages))
 			// combined as they are in ChatView
-			const apiMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(this.clineMessages.slice(1))))
+			// メッセージの統計情報の取得
+			const apiMetrics = getApiMetrics(
+				combineApiRequests(
+					combineCommandSequences(
+						this.clineMessages.slice(1) // 最初のメッセージを除いた配列を取得
+					)
+				)
+			)
+			// 最初のメッセージはいつもtask sayであると言っている
+			// ユーザーからの質問はaskなのでaskから始まりそうなのだが、実際にはタスク開始時のユーザー入力のタスク自体もsayタイプのメッセージとして保存している
+			// これについてはstartTask関数の実装を確認
 			const taskMessage = this.clineMessages[0] // first message is always the task say
+			// 最後の関連メッセージを探す
 			const lastRelevantMessage =
 				this.clineMessages[
 					findLastIndex(
 						this.clineMessages,
+						// resume_taskやresume_completed_task以外の最後のメッセージを探しているのは制御構文を除外するため？？
 						(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task"),
 					)
 				]
@@ -217,6 +245,7 @@ export class Cline {
 		}
 	}
 
+	// 2025/01/21　本日の読解はここまで！！
 	// Communicate with webview
 
 	// partial has three valid states true (partial message), false (completion of partial message), undefined (individual complete message)
@@ -790,6 +819,7 @@ export class Cline {
 		return false
 	}
 
+	// ジェネレータ関数として定義されている
 	async *attemptApiRequest(previousApiReqIndex: number): ApiStream {
 		// Wait for MCP servers to be connected before generating system prompt
 		await pWaitFor(() => this.providerRef.deref()?.mcpHub?.isConnecting !== true, { timeout: 10_000 }).catch(() => {
@@ -843,8 +873,9 @@ export class Cline {
 
 		try {
 			// awaiting first chunk to see if it will throw an error
+			// yu: 最初にこれを生成
 			const firstChunk = await iterator.next()
-			yield firstChunk.value
+			yield firstChunk.value //yu: まずはこれを返す
 		} catch (error) {
 			// note that this api_req_failed ask is unique in that we only present this option if the api hasn't streamed any content yet (ie it fails on the first chunk due), as it would allow them to hit a retry button. However if the api failed mid-stream, it could be in any arbitrary state where some tools may have executed, so that error is handled differently and requires cancelling the task entirely.
 			const { response } = await this.ask(
@@ -857,7 +888,7 @@ export class Cline {
 			}
 			await this.say("api_req_retried")
 			// delegate generator output from the recursive call
-			yield* this.attemptApiRequest(previousApiReqIndex)
+			yield* this.attemptApiRequest(previousApiReqIndex) // yu: 次にこれを返す
 			return
 		}
 
